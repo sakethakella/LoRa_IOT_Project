@@ -7,11 +7,8 @@ const unsigned long ACK_TIMEOUT = 4000;  // 10 seconds
 
 String getUniqueID() {
   uint32_t uid0 = *(uint32_t*)0x1FFF7590;
-  uint32_t uid1 = *(uint32_t*)0x1FFF7594;
-  uint32_t uid2 = *(uint32_t*)0x1FFF7598;
-
-  char buffer[25];
-  sprintf(buffer, "%08lX%08lX%08lX", uid0, uid1, uid2);
+  char buffer[9];  // 8 hex digits + null terminator
+  sprintf(buffer, "%08lX", uid0);  // Capital hex, zero-padded
   return String(buffer);
 }
 
