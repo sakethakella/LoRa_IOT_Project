@@ -87,7 +87,8 @@ void loop()
 
     Serial.printf("%02d/%02d/%02d ", rtc.getDay(), rtc.getMonth(), rtc.getYear());
     Serial.printf("%02d:%02d:%02d.%03d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds(), rtc.getSubSeconds());
-    Serial.print(rssi );
+    Serial.print(rssi);
+    Serial.print("dBm \n");
     Serial.print("Received: ");
     Serial.println((char *)buf);
     radio.transmit("HELLO_ACK");
