@@ -2,7 +2,7 @@
 
 This project demonstrates how to implement **raw LoRa communication (not LoRaWAN)** between two **Seeed Studio Wio-E5 Dev Kits** using the [RadioLib](https://github.com/jgromes/RadioLib) Arduino library.
 
-> 🚫 No LoRaWAN server or gateway is used — this is a pure peer-to-peer LoRa setup.
+> 🚫 No LoRaWAN server or gateway is used — this is a pure many to one LoRa setup.
 
 ---
 
@@ -17,7 +17,7 @@ This project demonstrates how to implement **raw LoRa communication (not LoRaWAN
 
 ## 🧰 Hardware Requirements
 
-- 2x Seeed Studio Wio-E5 Dev Kit
+- Seeed Studio Wio-E5 Dev Kit/mini
 - USB-C cables
 - Antennas (868 MHz recommended)
 - ST-Link V2 (optional, for programming via STM32CubeProgrammer)
@@ -42,9 +42,9 @@ This project demonstrates how to implement **raw LoRa communication (not LoRaWAN
 
 ### 2. Select Board
 
-- Board: `Generic STM32WL Series`
-- Variant: `Wio-E5 (STM32WLE5JC)`
-- Upload method: STLink / UART depending on your setup
+- Board: `LoRa Boards`
+- Variant: `LoRa E5 mini`
+- Upload method: `STM32cubeprogrammer(swd)`
 
 ---
 
