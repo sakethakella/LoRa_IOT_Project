@@ -42,7 +42,7 @@ void setup()
   };
 
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 6, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE)
   {
     Serial.print("LoRa init failed, code ");
@@ -79,12 +79,15 @@ void loop()
   uint8_t buf[64] = {0};
   int len = sizeof(buf);
   int state = radio.receive(buf, len);
+  float rssi=radio.getRSSI();
 
   if (state == RADIOLIB_ERR_NONE)
   {
     buf[len] = 0; // null-terminate
+
     Serial.printf("%02d/%02d/%02d ", rtc.getDay(), rtc.getMonth(), rtc.getYear());
     Serial.printf("%02d:%02d:%02d.%03d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds(), rtc.getSubSeconds());
+    Serial.print(rssi );
     Serial.print("Received: ");
     Serial.println((char *)buf);
     radio.transmit("HELLO_ACK");
