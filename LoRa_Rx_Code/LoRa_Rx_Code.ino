@@ -79,12 +79,15 @@ void loop()
   uint8_t buf[64] = {0};
   int len = sizeof(buf);
   int state = radio.receive(buf, len);
+  float rssi=radio.getRSSI();
 
   if (state == RADIOLIB_ERR_NONE)
   {
     buf[len] = 0; // null-terminate
+
     Serial.printf("%02d/%02d/%02d ", rtc.getDay(), rtc.getMonth(), rtc.getYear());
     Serial.printf("%02d:%02d:%02d.%03d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds(), rtc.getSubSeconds());
+    Serial.print(rssi );
     Serial.print("Received: ");
     Serial.println((char *)buf);
     radio.transmit("HELLO_ACK");
