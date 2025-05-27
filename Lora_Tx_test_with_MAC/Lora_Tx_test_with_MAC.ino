@@ -78,7 +78,7 @@ void initializeRadio() {
 bool establishConnection() {
   initializeRadio();
   String macID = getUniqueID();
-  String message = "HELLO|" + macID;
+  String message = "HELLO\n" + macID;
   int retries = 0;
 
   while (retries < MAX_RETRIES) {
