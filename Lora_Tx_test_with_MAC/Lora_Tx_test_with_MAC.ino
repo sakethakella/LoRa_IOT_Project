@@ -78,7 +78,10 @@ void initializeRadio() {
 bool establishConnection() {
   initializeRadio();
   String macID = getUniqueID();
-  String message = "HELLO\n" + macID;
+  Serial.print("Device ID = \"");
+  Serial.print(macID);
+  Serial.println("\"");
+  String message = "HELLO\nDevice ID = \"" + macID + "\"";
   int retries = 0;
 
   while (retries < MAX_RETRIES) {
