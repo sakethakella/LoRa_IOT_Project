@@ -1,6 +1,5 @@
 #include <RadioLib.h>
 #include <STM32RTC.h>
-#include <string.h>
 
 STM32WLx radio = new STM32WLx_Module();
 STM32RTC &rtc = STM32RTC::getInstance();
