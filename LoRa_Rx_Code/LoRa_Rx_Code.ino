@@ -2,6 +2,7 @@
 #include <STM32RTC.h>
 #include <U8g2lib.h>
 #include <Wire.h>
+#include <TimeLib.h>
 
 STM32WLx radio = new STM32WLx_Module();
 STM32RTC &rtc = STM32RTC::getInstance();
@@ -9,25 +10,36 @@ TwoWire myWire(PA9, PA10); // SCL, SDA for Wio-E5
 U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE, /* clock=*/PA9, /* data=*/PA10);
 
 
-const byte seconds = 0;
-const byte minutes = 0;
-const byte hours = 12;
-const byte weekDay = 2;
-const byte day = 27;
-const byte month = 5;
-const byte year = 25;
+const byte setseconds = 0;
+const byte setminutes = 25;
+const byte sethours = 13;
+const byte setweekDay = 3;
+const byte setday = 28;
+const byte setmonth = 5;
+const byte setyear = 25;
+
+time_t convertToUnixTime(int year, int month, int day, int hour, int minute, int second) {
+  tmElements_t tm;
+  tm.Year = year - 1970;  // TimeLib counts years since 1970
+  tm.Month = month;
+  tm.Day = day;
+  tm.Hour = hour;
+  tm.Minute = minute;
+  tm.Second = second;
+  return makeTime(tm);
+}
 
 void setup()
 {
   Serial.begin(115200);
   rtc.begin();
-  rtc.setHours(hours);
-  rtc.setMinutes(minutes);
-  rtc.setSeconds(seconds);
-  rtc.setWeekDay(weekDay);
-  rtc.setDay(day);
-  rtc.setMonth(month);
-  rtc.setYear(year);
+  rtc.setHours(sethours);
+  rtc.setMinutes(setminutes);
+  rtc.setSeconds(setseconds);
+  rtc.setWeekDay(setweekDay);
+  rtc.setDay(setday);
+  rtc.setMonth(setmonth);
+  rtc.setYear(setyear);
   while (!Serial)
     ;
   static const uint32_t rfswitch_pins[5] = {PA4, PA5, RADIOLIB_NC, RADIOLIB_NC, RADIOLIB_NC};
@@ -62,32 +74,29 @@ void setup()
 
 void loop()
 {
-  uint8_t buf[128] = {0};
-  int len = sizeof(buf);
-  int state = radio.receive(buf, len);
+  uint8_t buffer[17] = {0};
+  int len = sizeof(buffer);
+  int state = radio.receive(buffer, len);
   float rssi=radio.getRSSI();
-
+  time_t unixTime = convertToUnixTime(2000 + rtc.getYear(), rtc.getMonth(), rtc.getDay(), rtc.getHours(), rtc.getMinutes(), rtc.getSeconds());
   if (state == RADIOLIB_ERR_NONE)
   {
-    buf[len] = 0; // null-terminate
 
     Serial.printf("%02d/%02d/%02d ", rtc.getDay(), rtc.getMonth(), rtc.getYear());
     Serial.printf("%02d:%02d:%02d.%03d\n", rtc.getHours(), rtc.getMinutes(), rtc.getSeconds(), rtc.getSubSeconds());
+    Serial.printf("Unix Time: %lu\n", (unsigned long)unixTime);
     Serial.print(rssi);
     Serial.print("dBm \n");
     Serial.print("Received: ");
-    Serial.println((char *)buf);
+    for (int i = 0; i < len; i++) {
+      if(buffer[i]<0x10)Serial.print("0");
+      Serial.print(buffer[i],HEX);
+      Serial.print(" ");
+    }
+    Serial.println();
     radio.transmit("HELLO_ACK");
     Serial.println("ACK Sent");
-    u8g2.clearBuffer();
-    u8g2.setFont(u8g2_font_ncenB08_tr);
-    u8g2.setCursor(0, 16);
-    u8g2.print("LoRa RX:");
-    u8g2.setCursor(0, 32);
-    u8g2.print((char*)buf);
-    u8g2.setCursor(0, 48);
-    u8g2.printf("RSSI: %.1f dBm", rssi);
-    u8g2.sendBuffer();
+    
   }
   else if (state != RADIOLIB_ERR_RX_TIMEOUT)
   {
