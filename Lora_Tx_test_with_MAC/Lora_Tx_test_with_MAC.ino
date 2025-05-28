@@ -69,8 +69,9 @@ void setup() {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
     while (true);
-    Serial.println("Lora Transmitter Ready!");
+    
   }
+  else Serial.println("Lora Transmitter Ready!");
 }
 
 void loop() {
