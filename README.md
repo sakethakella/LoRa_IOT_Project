@@ -1,6 +1,6 @@
 <h1>LoRa Communication with Seeed Studio LoRa-E5 &amp; STM32WLx Dev Kits</h1>
 
-<p>This project demonstrates how to establish LoRa communication between two Seeed Studio LoRa-E5 boards (STM32WLx-based) using Arduino IDE. It includes a transmitter that sends custom temperature data along with unique device identifiers and a receiver that captures the data, logs it with timestamps, and acknowledges reception.</p>
+<p>This project demonstrates how to establish LoRa communication between many Seeed Studio LoRa-E5 boards (STM32WLx-based) in star topology using Arduino IDE. It includes a transmitter that sends custom temperature data along with unique device identifiers and a receiver that captures the data, logs it with timestamps, and acknowledges reception.</p>
 
 <h3>Project Overview</h3>
 <p>We worked with <strong>Seeed Studio LoRa-E5 development kits</strong> to build a reliable low-power wireless communication link over LoRa. The key aspects of our work:</p>
@@ -68,6 +68,12 @@
 <h3>Usage</h3>
 <p>Upload the <strong>transmitter</strong> code to one LoRa-E5 board and the <strong>receiver</strong> code to another. Open serial monitors on both boards to view transmitted and received data. Observe temperature data, device IDs, timestamps, and handshake acknowledgments for communication reliability.</p>
 
-<hr>
+<h3>Areas where things can go wrong</h3>
+<ul>
+  <li>Not using proper stlink</li>
+  <p>If not used proper ST-Link, the code may not upload and your device may not be found at all.</p>
+  <li>Proper configuration in Arduino IDE</li>
+  <p>Properly configure your device in Arduino IDE by correct selection of boards and settings.</p>
+</ul>
 
-<p>Feel free to contribute or raise issues for improvements!</p>
+<hr/>

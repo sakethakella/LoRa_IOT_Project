@@ -3,7 +3,6 @@
 
 STM32WLx radio = new STM32WLx_Module();
 STM32RTC &rtc = STM32RTC::getInstance();
-
 const byte seconds = 0;
 const byte minutes = 0;
 const byte hours = 12;
