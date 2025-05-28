@@ -1,11 +1,16 @@
 #include <RadioLib.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <Wire.h> //SHT41X
+#include <Adafruit_SHT4x.h>// SHT41
 
 // DS18B20 connected to pin PA0 (change as needed)
-#define ONE_WIRE_BUS PA0
+#define ONE_WIRE_BUS A3
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
+
+// SHT41 (I2C)
+Adafruit_SHT4x sht4 = Adafruit_SHT4x();
 
 // Create the STM32WLx radio object
 STM32WLx radio = new STM32WLx_Module();
@@ -26,6 +31,15 @@ void setup() {
  // Initialize DS18B20
   sensors.begin();
 
+   // Initialize SHT41
+  if (!sht4.begin()) {
+    Serial.println("Couldn't find SHT4x sensor!");
+  } else {
+    Serial.println("SHT4x sensor initialized");
+    sht4.setPrecision(SHT4X_HIGH_PRECISION);
+    sht4.setHeater(SHT4X_NO_HEATER);
+  }
+
   // Configure RF switch for LoRa-E5
   static const uint32_t rfswitch_pins[5] = {PA4, PA5, RADIOLIB_NC, RADIOLIB_NC, RADIOLIB_NC};
   static const Module::RfSwitchMode_t rfswitch_table[] = {
@@ -35,7 +49,7 @@ void setup() {
     END_OF_MODE_TABLE
   };
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
@@ -70,7 +84,7 @@ void initializeRadio() {
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
 
   // Initialize radio
-  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
@@ -85,23 +99,36 @@ float readTemperature() {
   sensors.requestTemperatures();
   return sensors.getTempCByIndex(0);  // Get temperature from first sensor
 }
+
+
+bool readSHT41(float &temp, float &humidity) {
+  sensors_event_t temp_event, humidity_event;
+
+  sht4.getEvent(&humidity_event, &temp_event);  // blocks for measurement
+  temp = temp_event.temperature;
+  humidity = humidity_event.relative_humidity;
+  
+  return !isnan(temp) && !isnan(humidity);  // true if valid
+}
   
 bool establishConnection() {
   initializeRadio();
   String macID = getUniqueID();
-  float temperature = readTemperature();
-  String message = "Temp: " + String(temperature, 2) + " C, Device ID = \"" + macID + "\"";
+  float temp = readTemperature();
+  float shtTemp = 0.0, shtHum = 0.0;
+  bool shtOK = readSHT41(shtTemp, shtHum);
+  String message = "DS18B20: " + String(temp, 2) + " C";
+  if (shtOK) {
+    message += ", SHT41 Temp: " + String(shtTemp, 2) + " C, Hum: " + String(shtHum, 2) + " %";
+  } else {
+    message += ", SHT41: N/A";
+  }
+  message += ", ID: \"" + macID + "\"";
 
-  Serial.print("Device ID = \"");
-  Serial.print(macID);
-  Serial.println("\"");
+  Serial.println("Sending message: " + message);
 
   int retries = 0;
   while (retries < MAX_RETRIES) {
-    Serial.print("Sending temperature data (try ");
-    Serial.print(retries + 1);
-    Serial.println(")...");
-
     int txState = radio.transmit(message.c_str());
     if (txState != RADIOLIB_ERR_NONE) {
       Serial.print("Transmit failed, code ");
@@ -111,20 +138,17 @@ bool establishConnection() {
       continue;
     }
 
-    // Wait for ACK
-    uint8_t ackBuf[32] = {0};
+    uint8_t ackBuf[128] = {0};
     int ackLen = sizeof(ackBuf);
     unsigned long startTime = millis();
 
     while (millis() - startTime < ACK_TIMEOUT) {
       memset(ackBuf, 0, ackLen);
-      int rxLen = ackLen;
       int rxState = radio.receive(ackBuf, ackLen);
       if (rxState == RADIOLIB_ERR_NONE) {
         ackBuf[ackLen] = 0;
         Serial.print("Received: ");
         Serial.println((char*)ackBuf);
-
         if (strcmp((char*)ackBuf, "HELLO_ACK") == 0) {
           Serial.println("ACK received!");
           return true;
@@ -143,7 +167,7 @@ void loop() {
   bool x= establishConnection();
   Serial.print("sending to sleep\n");
   radio.sleep();
-  delay(6000);
+  delay(10000);
   radio.standby(RADIOLIB_SX126X_STANDBY_RC, true);
   Serial.println("device woke up");
   delay(2000);
