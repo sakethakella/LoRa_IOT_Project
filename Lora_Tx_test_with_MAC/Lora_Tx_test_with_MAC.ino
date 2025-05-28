@@ -1,4 +1,11 @@
 #include <RadioLib.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+// DS18B20 connected to pin PA0 (change as needed)
+#define ONE_WIRE_BUS PA0
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
 
 // Create the STM32WLx radio object
 STM32WLx radio = new STM32WLx_Module();
@@ -16,6 +23,8 @@ String getUniqueID() {
 void setup() {
   Serial.begin(115200);
   while (!Serial);
+ // Initialize DS18B20
+  sensors.begin();
 
   // Configure RF switch for LoRa-E5
   static const uint32_t rfswitch_pins[5] = {PA4, PA5, RADIOLIB_NC, RADIOLIB_NC, RADIOLIB_NC};
@@ -71,18 +80,25 @@ void initializeRadio() {
   Serial.println("LoRa Transmitter Initialized - 868 MHz, SF6, BW125kHz, CR4/5");
   initialized = true;
 }
+
+float readTemperature() {
+  sensors.requestTemperatures();
+  return sensors.getTempCByIndex(0);  // Get temperature from first sensor
+}
   
 bool establishConnection() {
   initializeRadio();
   String macID = getUniqueID();
+  float temperature = readTemperature();
+  String message = "Temp: " + String(temperature, 2) + " C, Device ID = \"" + macID + "\"";
+
   Serial.print("Device ID = \"");
   Serial.print(macID);
   Serial.println("\"");
-  String message = "HELLO\nDevice ID = \"" + macID + "\"";
-  int retries = 0;
 
+  int retries = 0;
   while (retries < MAX_RETRIES) {
-    Serial.print("Sending HELLO with MAC (try ");
+    Serial.print("Sending temperature data (try ");
     Serial.print(retries + 1);
     Serial.println(")...");
 
@@ -95,7 +111,7 @@ bool establishConnection() {
       continue;
     }
 
-    // Wait for HELLO_ACK
+    // Wait for ACK
     uint8_t ackBuf[32] = {0};
     int ackLen = sizeof(ackBuf);
     unsigned long startTime = millis();
@@ -110,7 +126,7 @@ bool establishConnection() {
         Serial.println((char*)ackBuf);
 
         if (strcmp((char*)ackBuf, "HELLO_ACK") == 0) {
-          Serial.println("Connection ACK received!");
+          Serial.println("ACK received!");
           return true;
         }
       }
@@ -122,7 +138,6 @@ bool establishConnection() {
 
   return false;
 }
-
 
 void loop() {
   bool x= establishConnection();
