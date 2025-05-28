@@ -1,14 +1,17 @@
 #include <RadioLib.h>
 #include <STM32RTC.h>
+#include <U8g2lib.h>
+#include <Wire.h>
 
 STM32WLx radio = new STM32WLx_Module();
 STM32RTC &rtc = STM32RTC::getInstance();
+TwoWire myWire(PA9, PA10); // SCL, SDA for Wio-E5
+U8G2_SSD1306_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/U8X8_PIN_NONE, /* clock=*/PA9, /* data=*/PA10);
+
+
 const byte seconds = 0;
 const byte minutes = 0;
 const byte hours = 12;
-
-/* Change these values to set the current initial date */
-/* Monday 15th June 2015 */
 const byte weekDay = 2;
 const byte day = 27;
 const byte month = 5;
@@ -41,7 +44,7 @@ void setup()
   };
 
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE)
   {
     Serial.print("LoRa init failed, code ");
@@ -50,32 +53,16 @@ void setup()
       ;
   }
   Serial.println("LoRa Receiver ready.");
-}
-String hexToAscii(const String &hex)
-{
-  String ascii = "";
-  for (size_t i = 0; i < hex.length(); i += 2)
-  {
-    String byteStr = hex.substring(i, i + 2);
-    char c = strtol(byteStr.c_str(), nullptr, 16);
-    ascii += c;
-  }
-  return ascii;
-}
-
-// Example on receiver:
-
-void handleReceivedMessage(char *rawHex)
-{
-  String hexMsg = String(rawHex);
-  String decodedMsg = hexToAscii(hexMsg);
-  Serial.print("Decoded Message: ");
-  Serial.println(decodedMsg);
+  u8g2.begin();
+  u8g2.clearBuffer();          
+  u8g2.setFont(u8g2_font_ncenB08_tr); 
+  u8g2.drawStr(0, 24, "Hello Wio-E5!");  
+  u8g2.sendBuffer();  
 }
 
 void loop()
 {
-  uint8_t buf[64] = {0};
+  uint8_t buf[128] = {0};
   int len = sizeof(buf);
   int state = radio.receive(buf, len);
   float rssi=radio.getRSSI();
@@ -92,6 +79,15 @@ void loop()
     Serial.println((char *)buf);
     radio.transmit("HELLO_ACK");
     Serial.println("ACK Sent");
+    u8g2.clearBuffer();
+    u8g2.setFont(u8g2_font_ncenB08_tr);
+    u8g2.setCursor(0, 16);
+    u8g2.print("LoRa RX:");
+    u8g2.setCursor(0, 32);
+    u8g2.print((char*)buf);
+    u8g2.setCursor(0, 48);
+    u8g2.printf("RSSI: %.1f dBm", rssi);
+    u8g2.sendBuffer();
   }
   else if (state != RADIOLIB_ERR_RX_TIMEOUT)
   {
