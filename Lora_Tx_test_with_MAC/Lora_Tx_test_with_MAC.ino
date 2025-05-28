@@ -69,6 +69,7 @@ void setup() {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
     while (true);
+    Serial.println("Lora Transmitter Ready!");
   }
 }
 
@@ -121,7 +122,7 @@ void loop() {
 
   // CRC
   uint8_t crc = 0;
-  for (int i = 0; i <= 14; i++) {
+  for (int i = 0; i < 14; i++) {
     crc += payload[i];
   }
   payload[14] = crc;
@@ -141,7 +142,7 @@ void loop() {
   // Sleep & wake cycle
   radio.sleep();
   Serial.println("Sleeping...");
-  delay(10000);
+  delay(15000);
   radio.standby(RADIOLIB_SX126X_STANDBY_RC, true);
   Serial.println("Woke up!");
   delay(2000);
