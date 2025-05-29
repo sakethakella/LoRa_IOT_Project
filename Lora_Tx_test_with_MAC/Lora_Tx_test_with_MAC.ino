@@ -1,14 +1,8 @@
 #include <RadioLib.h>
 #include <STM32RTC.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
 #include <Adafruit_SHT4x.h>
+#include <Wire.h>
 #include <time.h>
-
-// DS18B20 setup
-#define ONE_WIRE_BUS A3
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature ds18b20(&oneWire);
 
 // SHT41 setup
 Adafruit_SHT4x sht4 = Adafruit_SHT4x();
@@ -25,7 +19,7 @@ const byte setweekDay = 3;
 const byte setday = 28;
 const byte setmonth = 5;
 const byte setyear = 25;  // Only last two digits, e.g., 25 for 2025
-
+const int ACK_TIMEOUT=4000;
 // Convert to Unix timestamp
 uint32_t convertToUnixTime(int year, int month, int day, int hour, int minute, int second) {
     struct tm t = {0};
@@ -43,6 +37,9 @@ uint32_t convertToUnixTime(int year, int month, int day, int hour, int minute, i
 void setup() {
   Serial.begin(115200);
   while (!Serial);
+  // IMPORTANT: Initialize I2C on the correct pins for LoRa-E5 Mini
+  Wire.begin(PA15, PB15);
+
 
   // Initialize RTC
   rtc.begin();  // Just in case it hasn't been started
@@ -51,7 +48,6 @@ void setup() {
   rtc.setWeekDay(setweekDay);
 
   // Sensors
-  ds18b20.begin();
   sht4.begin();
 
   // LoRa setup
@@ -64,7 +60,7 @@ void setup() {
   };
 
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
@@ -85,17 +81,19 @@ void loop() {
   payload[3] = (uid0 >> 8) & 0xFF;
   payload[4] = uid0 & 0xFF;
 
-  // DS18B20 temperature
-  ds18b20.requestTemperatures();
-  float tempC = ds18b20.getTempCByIndex(0);
-  int16_t tempInt = (int16_t)(tempC * 100);
+  sensors_event_t humidity_event, temp_event;
+  sht4.getEvent(&humidity_event, &temp_event);
+
+ // SHT41 Temperature
+
+  uint16_t tempInt = (uint16_t)(temp_event.temperature * 100);
+  Serial.println(temp_event.temperature);
   payload[5] = (tempInt >> 8) & 0xFF;
   payload[6] = tempInt & 0xFF;
 
   // SHT41 humidity
-  sensors_event_t humidity_event, temp_event;
-  sht4.getEvent(&humidity_event, &temp_event);
-  uint16_t humidityInt = (uint16_t)(humidity_event.relative_humidity * 100);
+  
+  uint16_t humidityInt = (uint16_t)(humidity_event.relative_humidity*10);
   payload[7] = (humidityInt >> 8) & 0xFF;
   payload[8] = humidityInt & 0xFF;
 
@@ -135,10 +133,35 @@ void loop() {
   int txState = radio.transmit(payload, 17);
   if (txState == RADIOLIB_ERR_NONE) {
     Serial.println("Payload sent!");
-  } else {
-    Serial.print("Send failed, code: ");
-    Serial.println(txState);
+
+  // Switch to RX mode to wait for ACK
+  Serial.println("Waiting for ACK...");
+  radio.startReceive();
+
+  unsigned long startTime = millis();
+  bool ackReceived = false;
+  String ack = "";  // Declare only once here
+
+  while (millis() - startTime < ACK_TIMEOUT) {
+    ack = "";  // Clear the previous content
+    int state = radio.receive(ack, ACK_TIMEOUT);
+    if (state == RADIOLIB_ERR_NONE) {
+      Serial.print("ACK received: ");
+      Serial.println(ack);
+      ackReceived = true;
+      break;
+    }
   }
+
+  if (!ackReceived) {
+    Serial.println("No ACK received or receive error.");
+  }
+
+} else {
+  Serial.print("Send failed, code: ");
+  Serial.println(txState);
+}
+
 
   // Sleep & wake cycle
   radio.sleep();
