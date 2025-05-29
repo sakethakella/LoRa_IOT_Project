@@ -19,8 +19,8 @@ const byte setweekDay = 3;
 const byte setday = 28;
 const byte setmonth = 5;
 const byte setyear = 25;
-int temperature;
-int humidity;
+float temperature;
+float humidity;
 int time11;
 int battery;
 float rssi;
@@ -70,20 +70,23 @@ void getdata(uint8_t *buf){
     }
     humidity=hum;
     uint8_t bat=buf[9];
+    battery=bat;
     uint32_t timestamp1=0;
     for(int i=10;i<=13;i++){
       timestamp1=(timestamp1<<8)|buf[i];
     }
     time11=timestamp1;
+
 }
 
 //create json file
 void createJson() {
   StaticJsonDocument<128> doc;
   doc["macid"] = macaddress;
-  doc["humidity"] = humidity;
+  doc["humidity"] = float(humidity/10);
   doc["temperature"] = float(temperature/100);
   doc["rssi"] = rssi;
+  doc["battery"]=battery;
   doc["time11"]=time11;
   Serial.println();
   serializeJson(doc, Serial);
@@ -111,7 +114,7 @@ void setup()
       END_OF_MODE_TABLE
   };
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 12, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE)
   {
     Serial.print("LoRa init failed, code ");
