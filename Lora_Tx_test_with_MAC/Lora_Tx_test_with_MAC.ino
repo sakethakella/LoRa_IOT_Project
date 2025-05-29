@@ -60,7 +60,7 @@ void setup() {
   };
 
   radio.setRfSwitchTable(rfswitch_pins, rfswitch_table);
-  int state = radio.begin(868.0, 125.0, 9, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
+  int state = radio.begin(868.0, 125.0, 11, 5, RADIOLIB_SX126X_SYNC_WORD_PRIVATE, 14, 8, 1.7, false);
   if (state != RADIOLIB_ERR_NONE) {
     Serial.print("LoRa init failed, code ");
     Serial.println(state);
@@ -71,6 +71,9 @@ void setup() {
 }
 
 void loop() {
+  const int MAX_RETRIES = 3;        // User-defined max retry count
+  const int retryDelayMs = 2000;    // Delay between retries (ms)
+
   uint8_t payload[17];
   payload[0] = 0xAA;
 
@@ -81,34 +84,26 @@ void loop() {
   payload[3] = (uid0 >> 8) & 0xFF;
   payload[4] = uid0 & 0xFF;
 
+  // Read sensor
   sensors_event_t humidity_event, temp_event;
   sht4.getEvent(&humidity_event, &temp_event);
-
- // SHT41 Temperature
 
   uint16_t tempInt = (uint16_t)(temp_event.temperature * 100);
   Serial.println(temp_event.temperature);
   payload[5] = (tempInt >> 8) & 0xFF;
   payload[6] = tempInt & 0xFF;
 
-  // SHT41 humidity
-  
-  uint16_t humidityInt = (uint16_t)(humidity_event.relative_humidity*10);
+  uint16_t humidityInt = (uint16_t)(humidity_event.relative_humidity * 10);
   payload[7] = (humidityInt >> 8) & 0xFF;
   payload[8] = humidityInt & 0xFF;
 
-  // Battery (dummy)
-  payload[9] = 95;
+  payload[9] = 95;  // Dummy battery
 
   // Timestamp
   int year = 2000 + rtc.getYear();
   uint32_t timestamp = convertToUnixTime(
-    year,
-    rtc.getMonth(),
-    rtc.getDay(),
-    rtc.getHours(),
-    rtc.getMinutes(),
-    rtc.getSeconds()
+    year, rtc.getMonth(), rtc.getDay(),
+    rtc.getHours(), rtc.getMinutes(), rtc.getSeconds()
   );
 
   Serial.print("Unix Timestamp: ");
@@ -129,41 +124,57 @@ void loop() {
   // Stop byte
   payload[15] = 0xFF;
 
-  // Send payload
-  int txState = radio.transmit(payload, 17);
-  if (txState == RADIOLIB_ERR_NONE) {
-    Serial.println("Payload sent!");
-
-  // Switch to RX mode to wait for ACK
-  Serial.println("Waiting for ACK...");
-  radio.startReceive();
-
-  unsigned long startTime = millis();
+  int attempt = 0;
   bool ackReceived = false;
-  String ack = "";  // Declare only once here
 
-  while (millis() - startTime < ACK_TIMEOUT) {
-    ack = "";  // Clear the previous content
-    int state = radio.receive(ack, ACK_TIMEOUT);
-    if (state == RADIOLIB_ERR_NONE) {
-      Serial.print("ACK received: ");
-      Serial.println(ack);
-      ackReceived = true;
-      break;
+  while (attempt <= MAX_RETRIES && !ackReceived) {
+    Serial.print("Sending payload (attempt ");
+    Serial.print(attempt + 1);
+    Serial.println(")...");
+
+    int txState = radio.transmit(payload, 17);
+    if (txState == RADIOLIB_ERR_NONE) {
+      Serial.println("Payload sent!");
+
+      Serial.println("Waiting for ACK...");
+      radio.startReceive();
+
+      unsigned long startTime = millis();
+      String ack = "";
+
+      while (millis() - startTime < ACK_TIMEOUT) {
+        ack = "";
+        int state = radio.receive(ack, ACK_TIMEOUT);
+        if (state == RADIOLIB_ERR_NONE) {
+          Serial.print("ACK received: ");
+          Serial.println(ack);
+          ackReceived = true;
+          break;
+        }
+      }
+
+      if (!ackReceived) {
+        Serial.println("No ACK received or receive error.");
+      }
+
+    } else {
+      Serial.print("Send failed, code: ");
+      Serial.println(txState);
     }
+
+    if (!ackReceived && attempt < MAX_RETRIES) {
+      Serial.println("Retrying...");
+      delay(retryDelayMs);
+    }
+
+    attempt++;
   }
 
   if (!ackReceived) {
-    Serial.println("No ACK received or receive error.");
+    Serial.println("Failed to receive ACK after max retries.");
   }
 
-} else {
-  Serial.print("Send failed, code: ");
-  Serial.println(txState);
-}
-
-
-  // Sleep & wake cycle
+  // Sleep & wake
   radio.sleep();
   Serial.println("Sleeping...");
   delay(15000);
