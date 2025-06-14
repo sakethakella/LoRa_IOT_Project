@@ -140,11 +140,11 @@ Transmitter:
 <h2>👨‍💻 Contributors</h2>
 <p>
   <strong>Akella Satya Hanuma Saketh</strong><br />
-  📧 <a href="mailto:saketh.akella@idbytes.com">Saketh Akella</a><br />
+  📧 <a href="mailto:sakethakella05@gmail.com">Saketh Akella</a><br />
   🔗 <a href="https://www.linkedin.com/in/saketh-akella-aa7886270/" target="_blank">LinkedIn</a>
 </p>
 <p>
   <strong>Thirumal Reddy Bandi</strong><br />
-  📧 <a href="mailto:Bandi Thirumal Reddy">thirumal.bandi@idbytes.com</a><br />
+  📧 <a href="mailto:Bandi Thirumal Reddy">thirumal Bandi</a><br />
   🔗 <a href="https://www.linkedin.com/in/thirumal-reddy-bandi-34a7a3250/" target="_blank">LinkedIn</a>
 </p>
